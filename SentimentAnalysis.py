@@ -11,8 +11,10 @@ service = NaturalLanguageUnderstandingV1(
 
 
 file = open('user-id-targetTweet-PastTweets.csv', 'r', newline='')
-writefile = open('user-id-sentiment-category_and_score', 'a', newline='')
-writer = csv.writer(writefile)
+targetfile = open('user-id-target_entity+sentiment', 'a', newline='')
+featurefile = open('user-id-feature_entity+sentiment', 'a', newline='')
+targetwriter = csv.writer(targetfile)
+featurewriter = csv.writer(featurefile)
 
 reader = csv.reader(file)
 big_list = list(reader)
@@ -28,30 +30,40 @@ for row in big_list:
         response = service.analyze(
             text=target_tweet,
             features=Features(sentiment=SentimentOptions(),
-                              categories=CategoriesOptions()
+                              keywords=KeywordsOptions()
                               )
         ).get_result()
 
-        for key in response: print(key)
-        csvRow.append(response['categories'][0]['label'])
+        for keyword in response['keywords']:
+            csvRow.append(keyword['text'] + ":" + str(response['sentiment']['document']['score']))
+
+        targetwriter.writerow(csvRow)
 
     except:
-        response = {}
         print("tweet malformed")
+
+    csvRow = [twitter_screen_name, twitter_id]
 
     for past_tweet in row[3:]:
 
         response = service.analyze(
             text=past_tweet,
-            features=Features(sentiment=SentimentOptions(), categories=CategoriesOptions())
+            features=Features(sentiment=SentimentOptions(), keywords=KeywordsOptions())
         ).get_result()
 
         print(past_tweet)
         print(response)
 
+        for keyword in response['keywords']:
+            csvRow.append(keyword['text'] + ":" + str(response['sentiment']['document']['score']))
+
+
         # sentiment analysis here
 
-writefile.close()
+    featurewriter.writerow(csvRow)
+
+targetfile.close()
+featurefile.close()
 file.close()
 
 
