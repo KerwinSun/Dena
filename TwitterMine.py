@@ -10,7 +10,7 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 
 tweets = tweepy.Cursor(api.search,
-                       q="from:KerwinSUn1").items(1);
+                       q="gift",lang="en").items(10);
 
 file = open('user-id-targetTweet-PastTweets.csv', 'a', newline='')
 writer = csv.writer(file)
@@ -20,7 +20,7 @@ for result in tweets:
     userid = result.user.id
 
     statuses = tweepy.Cursor(api.user_timeline,
-                             user_id=result.user.id, tweet_mode="extended").items(10)
+                             user_id=result.user.id, tweet_mode="extended").items(5)
 
     csvRow = [result.user.screen_name, result.user.id, result.text]
 
