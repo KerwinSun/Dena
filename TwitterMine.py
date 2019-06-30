@@ -10,7 +10,7 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 
 tweets = tweepy.Cursor(api.search,
-                       q="gift",lang="en").items(10);
+                       q="gift",lang="en").items(1000);
 
 file = open('user-id-targetTweet-PastTweets.csv', 'a', newline='')
 writer = csv.writer(file)

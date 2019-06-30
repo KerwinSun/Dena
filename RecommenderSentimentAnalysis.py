@@ -16,15 +16,14 @@ writer = csv.writer(writefile)
 
 reader = csv.reader(file)
 big_list = list(reader)
-
+csvRow2 = [""]
+csvRow3 = [""]
 for row in big_list:
-
     twitter_screen_name = row[0];
     twitter_id = row[1]
     target_tweet = row[2]
     csvRow = [twitter_screen_name, twitter_id]
-    csvRow2 = [""]
-    csvRow3 = [""]
+    csvRow3 = [""] * len(csvRow2)
     try:
         response = service.analyze(
             text=target_tweet,
@@ -41,31 +40,26 @@ for row in big_list:
         print("tweet malformed")
 
     for past_tweet in row[3:]:
-
-        response = service.analyze(
+        try:
+            response = service.analyze(
             text=past_tweet,
             features=Features(sentiment=SentimentOptions(), categories=CategoriesOptions(), keywords = KeywordsOptions())
         ).get_result()
+            print(past_tweet)
+            print(response)
+            # sentiment analysis here
+            for keyword in response['keywords']:
+                csvRow2.append(keyword['text']);
+                index = csvRow2.index(keyword['text'])
+                csvRow3.insert(index, response['sentiment']['document']['score'])
 
-        print(past_tweet)
-        print(response)
-
-        # sentiment analysis here
-        for keyword in response['keywords']:
-            csvRow2.append(keyword['text']);
-
-    csvRow3;
-    for past_tweet in row[3:]:
-        response = service.analyze(
-            text=past_tweet,
-            features=Features(sentiment=SentimentOptions(), categories=CategoriesOptions(), keywords=KeywordsOptions())
-        ).get_result()
-        for keyword in response['keywords']:
-            index = csvRow2.index(keyword['text'])
-            csvRow3.insert(index,response['sentiment']['document']['score'])
+            writer.writerow(csvRow3)
+        except:
+            response = {};
+            print("tweet has unsupported languages")
 
 writer.writerow(csvRow2)
-writer.writerow(csvRow3)
+#writer.writerow(csvRow3)
 writefile.close()
 file.close()
 print(csvRow2)
