@@ -1,6 +1,12 @@
 import tweepy
 import csv
-
+from imageai.Detection import ObjectDetection
+import os
+import urllib.request
+import numpy as np
+import requests
+import io
+from PIL import Image
 consumer_key = "uqKb1h9prIwbAVCqocBuqInFs"
 consumer_secret = "EXlWGr7VFTGJ00116M25mDWyNveORVkHVPGXHaAOsg1lwFUQn8"
 access_token = "2388347288-uEH2UbQnr2uZYCZDuvh93wD8UHZ3PMB15diH9tK"
@@ -14,6 +20,36 @@ tweets = tweepy.Cursor(api.search,
 
 file = open('user-id-targetTweet-PastTweets.csv', 'a', newline='')
 writer = csv.writer(file)
+
+statuses = tweepy.Cursor(api.user_timeline,
+                             user_id="@wewweowew", tweet_mode="extended").items(15)
+
+execution_path = os.getcwd()
+detector = ObjectDetection()
+detector.setModelTypeAsRetinaNet()
+detector.setModelPath( os.path.join(execution_path , "resnet50_coco_best_v2.0.1.h5"))
+detector.loadModel()
+
+for status in statuses:
+    print(len(status.entities.get("media","")))
+    if len(status.entities.get("media","")) != 0:
+        imageList = status.entities.get("media","");
+        imageurl = imageList[0].get("media_url","")
+        print(imageurl);
+        with urllib.request.urlopen(imageurl) as url:
+            s = url.read()
+
+            q = urllib.request.urlretrieve(imageurl,"local-filename.jpg");
+
+            detections = detector.detectObjectsFromImage(input_image=os.path.join(execution_path , "local-filename.jpg"), output_image_path=os.path.join(execution_path , "imagenew.jpg"))
+
+            for eachObject in detections:
+                print(eachObject["name"], " : ", eachObject["percentage_probability"])
+            # I'm guessing this would output the html source code ?
+
+        print(status);
+
+
 
 for result in tweets:
     print(result)
