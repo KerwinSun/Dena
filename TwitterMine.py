@@ -31,22 +31,16 @@ detector.setModelPath( os.path.join(execution_path , "resnet50_coco_best_v2.0.1.
 detector.loadModel()
 
 for status in statuses:
-    print(len(status.entities.get("media","")))
     if len(status.entities.get("media","")) != 0:
         imageList = status.entities.get("media","");
         imageurl = imageList[0].get("media_url","")
-        print(imageurl);
         with urllib.request.urlopen(imageurl) as url:
-            s = url.read()
-
             q = urllib.request.urlretrieve(imageurl,"local-filename.jpg");
-
             detections = detector.detectObjectsFromImage(input_image=os.path.join(execution_path , "local-filename.jpg"), output_image_path=os.path.join(execution_path , "imagenew.jpg"))
-
+            os.remove("imagenew.jpg")
             for eachObject in detections:
                 print(eachObject["name"], " : ", eachObject["percentage_probability"])
             # I'm guessing this would output the html source code ?
-
         print(status);
 
 
