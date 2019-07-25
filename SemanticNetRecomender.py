@@ -30,7 +30,7 @@ file = open('TaxonomyUserTarget.csv', 'a', newline='', encoding="utf-8")
 writer = csv.writer(file)
 
 
-user = api.get_user("KerwinSUn1")
+user = api.get_user("webbersbrock")
 print(user)
 userid = user.id
 
@@ -81,7 +81,7 @@ for status in statuses:
 
                 print(keyword + "::" + tag)
 
-                if searcher.searchTaxMap(keyword.lower()) and keyword.lower() != "gift" :
+                if keyword.lower() != ("gift" or "https"): #and searcher.searchTaxMap(keyword.lower()) :
 
                     if keyword.lower() in entityDict:
                         entityDict[keyword.lower()] += blob.sentiment.polarity
@@ -138,6 +138,7 @@ for synsetEntity in synsetDict:
             entity1 = synsetDict[synsetEntity]
             entity2 = synsetDict[comparativeEntity]
             score = entity1.path_similarity(entity2)
-            synsetScoreDict[synsetEntity] += score
+            if score:
+                synsetScoreDict[synsetEntity] += score
 
 print(synsetScoreDict)
