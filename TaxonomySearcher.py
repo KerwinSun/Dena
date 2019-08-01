@@ -17,7 +17,7 @@ class TaxonomySearcher:
 
     def searchTaxMap(self, term):
         for item in self.taxList:
-            if term in item:
+            if term in item and len(term) > 2:
                 print(term + "- hit")
                 return True
         else:
