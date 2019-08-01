@@ -1,15 +1,14 @@
 import csv
-import ibm_watson
 import urllib.request
-import numpy as np
-import requests
-import io
 import os
 import tweepy
-from PIL import Image
 from imageai.Detection import ObjectDetection
 from ibm_watson import NaturalLanguageUnderstandingV1
 from ibm_watson.natural_language_understanding_v1 import Features, EntitiesOptions, KeywordsOptions, CategoriesOptions, SentimentOptions
+from textblob import TextBlob
+from spacy.pipeline import EntityRuler
+import spacy
+from TaxonomySearcher import TaxonomySearcher
 
 service = NaturalLanguageUnderstandingV1(
     version='2018-03-16',
@@ -31,23 +30,25 @@ access_token = "2388347288-uEH2UbQnr2uZYCZDuvh93wD8UHZ3PMB15diH9tK"
 access_token_secret ="RCXSN3rj4m04ECekNo3DnF2u7B4G7AJauZXs3DmbX14dc"
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
-
+api = tweepy.API(auth,wait_on_rate_limit=True,wait_on_rate_limit_notify=True)
 tweets = tweepy.Cursor(api.search,
-                       q="wewweowew",lang="en").items(5);
-
-
-
+                       q="gift",lang="en").items(1000);
 execution_path = os.getcwd()
 detector = ObjectDetection()
 detector.setModelTypeAsRetinaNet()
 detector.setModelPath( os.path.join(execution_path , "resnet50_coco_best_v2.0.1.h5"))
 detector.loadModel()
+searcher = TaxonomySearcher();
+nlp = spacy.load("en_core_web_lg")
+count = 0
 
+def deEmojify(inputString):
+    return inputString.encode('ascii', 'ignore').decode('ascii')
 
 for result in tweets:
     statuses = tweepy.Cursor(api.user_timeline,
                              user_id=result.user.id, tweet_mode="extended").items(5)
+    count  = count+1
     for status in statuses:
         if (not status.retweeted) and ('RT @' not in status.full_text) and (not status.in_reply_to_user_id)\
                 and result.id != status.id:
@@ -58,13 +59,33 @@ for result in tweets:
                                       keywords=KeywordsOptions())
                 ).get_result()
                 print(status.full_text)
-                print(response)
+                doc = nlp("u"+deEmojify(status.full_text));
                 # sentiment analysis here
                 for keyword in response['keywords']:
-                    csvRow2.append(keyword['text']);
-                    index = csvRow2.index(keyword['text'])
-                    score = response['sentiment']['document']['score'];
-                    csvRow3.insert(index, score)
+                    if searcher.searchTaxMap(keyword['text'].lower()):
+                        try:
+                            index = csvRow2.index(keyword['text'])
+                            value = csvRow3[index]
+                            score = response['sentiment']['document']['score'];
+                            csvRow3.insert(index, score+value)
+                        except:
+                            csvRow2.append(keyword['text']);
+                            index = csvRow2.index(keyword['text'])
+                            score = response['sentiment']['document']['score'];
+                            csvRow3.insert(index, score)
+
+                for ent in doc.ents:
+                    try:
+                        index = csvRow2.index(ent.text)
+                        value = csvRow3[index]
+                        print("Entity:" + ent.text)
+                        print([(ent.text, ent.label_) for ent in doc.ents])
+                        csvRow3.insert(index, score+value)
+                    except:
+                        csvRow2.append(ent.text)
+                        index = csvRow2.index(ent.text)
+                        print("Entity:" + ent.text)
+                        csvRow3.insert(index, score)
 
                 if len(status.entities.get("media", "")) != 0:
                     imageList = status.entities.get("media", "");
@@ -75,10 +96,17 @@ for result in tweets:
                             input_image=os.path.join(execution_path, "local-filename.jpg"),
                             output_image_path=os.path.join(execution_path, "imagenew.jpg"))
                         os.remove("imagenew.jpg")
+                        os.remove("local-filename.jpg")
                         for eachObject in detections:
-                            csvRow2.append(eachObject["name"]);
-                            index = csvRow2.index(keyword['text'])
-                            csvRow3.insert(index, score)
+                            if searcher.searchTaxMap(keyword['text']):
+                                try:
+                                    index = csvRow2.index(keyword['text'])
+                                    value    = csvRow3[index]
+                                    csvRow3.insert(index, score+value)
+                                except:
+                                    csvRow2.append(eachObject["name"]);
+                                    index = csvRow2.index(keyword['text'])
+                                    csvRow3.insert(index, score)
 
                 writer.writerow(csvRow3)
             except:
@@ -86,67 +114,7 @@ for result in tweets:
                 print("tweet has unsupported languages")
 
 
-
-
-
-# for row in big_list:
-#     twitter_screen_name = row[0];
-#     twitter_id = row[1]
-#     target_tweet = row[2]
-#     csvRow = [twitter_screen_name, twitter_id]
-#     csvRow3 = [""] * len(csvRow2)
-#     try:
-#         response = service.analyze(
-#             text=target_tweet,
-#             features=Features(sentiment=SentimentOptions(),
-#                               categories=CategoriesOptions()
-#                               )
-#         ).get_result()
-#
-#         for key in response: print(key)
-#         csvRow.append(response['categories'][0]['label'])
-#
-#     except:
-#         response = {}
-#         print("tweet malformed")
-#
-#     for past_tweet in row[3:]:
-#
-#         try:
-#             response = service.analyze(
-#             text=past_tweet,
-#             features=Features(sentiment=SentimentOptions(), categories=CategoriesOptions(), keywords = KeywordsOptions())
-#         ).get_result()
-#             print(past_tweet)
-#             print(response)
-#             # sentiment analysis here
-#             for keyword in response['keywords']:
-#                 csvRow2.append(keyword['text']);
-#                 index = csvRow2.index(keyword['text'])
-#                 score = response['sentiment']['document']['score'];
-#                 csvRow3.insert(index, score)
-#
-#             if len(past_tweet.entities.get("media", "")) != 0:
-#                 imageList = past_tweet.entities.get("media", "");
-#                 imageurl = imageList[0].get("media_url", "")
-#                 with urllib.request.urlopen(imageurl) as url:
-#                     q = urllib.request.urlretrieve(imageurl, "local-filename.jpg");
-#                     detections = detector.detectObjectsFromImage(
-#                         input_image=os.path.join(execution_path, "local-filename.jpg"),
-#                         output_image_path=os.path.join(execution_path, "imagenew.jpg"))
-#                     os.remove("imagenew.jpg")
-#                     for eachObject in detections:
-#                         csvRow2.append(eachObject["name"]);
-#                         index = csvRow2.index(keyword['text'])
-#                         csvRow3.insert(index, score)
-#
-#             writer.writerow(csvRow3)
-#         except:
-#             response = {};
-#             print("tweet has unsupported languages")
-
 writer.writerow(csvRow2)
-#writer.writerow(csvRow3)
 writefile.close()
 file.close()
 print(csvRow2)

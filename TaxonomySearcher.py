@@ -12,7 +12,7 @@ class TaxonomySearcher:
 
         for rows in taxRows:
             for categories in rows[1:]:
-                taxMap[categories] = ""
+                taxMap[categories.lower()] = ""
         self.taxList = list(taxMap.keys())
 
     def searchTaxMap(self, term):
