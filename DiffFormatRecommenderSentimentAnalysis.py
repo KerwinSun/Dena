@@ -32,7 +32,7 @@ auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth,wait_on_rate_limit=True,wait_on_rate_limit_notify=True)
 tweets = tweepy.Cursor(api.search,
-                       q="gift",lang="en",result_type='mixed').items(50);
+                       q="gift",lang="en",result_type='mixed').items(100);
 execution_path = os.getcwd()
 detector = ObjectDetection()
 detector.setModelTypeAsRetinaNet()
@@ -48,6 +48,14 @@ def deEmojify(inputString):
 
 
 userId = set();
+i = 0
+
+
+def addDataRow(userid,item,rating,csvwriter):
+    csvrow = [userid,item,rating]
+    csvwriter.writerow(csvrow)
+
+
 for result in tweets:
 
     if result.user.id in userId:
@@ -57,7 +65,7 @@ for result in tweets:
 
     statuses = tweepy.Cursor(api.user_timeline,
                              user_id=result.user.id, tweet_mode="extended").items(5)
-    csvRow3 = [0] * len(csvRow2)
+    csvRow3 = []
     for status in statuses:
         if (not status.retweeted) and ('RT @' not in status.full_text) and (not status.in_reply_to_user_id)\
                 and result.id != status.id:
@@ -72,29 +80,16 @@ for result in tweets:
                 # sentiment analysis here
                 for keyword in response['keywords']:
                     if searcher.searchTaxMap(keyword['text'].lower()):
-                        try:
-                            index = csvRow2.index(keyword['text'])
-                            value = csvRow3[index]
-                            score = response['sentiment']['document']['score'];
-                            csvRow3.insert(index, score+value)
-                        except:
-                            csvRow2.append(keyword['text']);
-                            index = csvRow2.index(keyword['text'])
-                            score = response['sentiment']['document']['score'];
-                            csvRow3.insert(index, score)
+                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
 
                 for ent in doc.ents:
                     if ent.label_ in good_labels:
                         try:
-                            index = csvRow2.index(ent.text)
-                            value = csvRow3[index]
                             print("Entity:" + ent.text + ent.label_)
-                            csvRow3.insert(index, score+value)
+                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
                         except:
-                            csvRow2.append(ent.text)
-                            index = csvRow2.index(ent.text)
                             print("Entity:" + ent.text+ent.label_)
-                            csvRow3.insert(index, score)
+                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
 
                 if len(status.entities.get("media", "")) != 0:
                     imageList = status.entities.get("media", "");
@@ -109,19 +104,14 @@ for result in tweets:
                         for eachObject in detections:
                             if searcher.searchTaxMap(keyword['text']):
                                 try:
-                                    index = csvRow2.index(keyword['text'])
-                                    value = csvRow3[index]
-                                    csvRow3.insert(index, score+value)
+                                    addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
                                 except:
-                                    csvRow2.append(eachObject["name"]);
-                                    index = csvRow2.index(keyword['text'])
-                                    csvRow3.insert(index, score)
+                                    addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
             except:
                 response = {};
                 print("tweet has unsupported languages")
-    writer.writerow(csvRow3)
+    i += 1
 
-writer.writerow(csvRow2)
 writefile.close()
 file.close()
 
