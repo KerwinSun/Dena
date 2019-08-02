@@ -1,3 +1,5 @@
+import re
+from amazon.api import AmazonAPI
 import tweepy
 import csv
 import spacy
@@ -8,7 +10,11 @@ from textblob.taggers import NLTKTagger
 from textblob.wordnet import Synset
 from textblob import Word
 import string
+import wikipediaapi
 
+wiki_wiki = wikipediaapi.Wikipedia('en')
+page_py = wiki_wiki.page('lebron')
+print(page_py)
 consumer_key = "uqKb1h9prIwbAVCqocBuqInFs"
 consumer_secret = "EXlWGr7VFTGJ00116M25mDWyNveORVkHVPGXHaAOsg1lwFUQn8"
 access_token = "2388347288-uEH2UbQnr2uZYCZDuvh93wD8UHZ3PMB15diH9tK"
@@ -16,7 +22,6 @@ access_token_secret ="RCXSN3rj4m04ECekNo3DnF2u7B4G7AJauZXs3DmbX14dc"
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
-
 
 extractor = ConllExtractor()
 nltk_tagger = NLTKTagger()
@@ -36,9 +41,19 @@ userid = user.id
 
 # helper methods to assist in sanitising tweets before analysis
 def clean(inputString):
+    inputString = re.sub(r"http\S+", "", inputString)
+    inputString = re.sub(r"@\S+", "", inputString)
     printable = set(string.printable)
     filter(lambda x: x in printable, inputString)
     return inputString.encode('ascii', 'ignore').decode('ascii')
+
+
+def wikicategories(category):
+    page_py = wiki_wiki.page(category)
+    if len(category) > 2 and page_py.exists() and ("refer to:" != page_py.summary[-9:]):
+        return True
+    return False
+print(wikicategories("movie"))
 
 statuses = api.user_timeline(
     user_id=userid, include_rts=False, exclude_replies=True, tweet_mode="extended", count = 100)
@@ -57,10 +72,12 @@ except Exception as e:
     print(e)
 
 file.close()
+
 # recommendation starts here
 
 entityDict = {}
 NamedEntityDict = {}
+
 for status in statuses:
 
     print("TWEET :" + status.full_text)
@@ -80,7 +97,8 @@ for status in statuses:
 
                 print(keyword + "::" + tag)
 
-                if searcher.searchTaxMap(keyword.lower()) and keyword.lower() != "gift":
+                # check if wiki article exists for entity
+                if wikicategories(keyword.lower()) and keyword.lower() != "gift":
 
                     if keyword.lower() in entityDict:
                         entityDict[keyword.lower()] += blob.sentiment.polarity
@@ -115,6 +133,9 @@ for entity in entityDict:
     if len(nets) > 0:
         net = nets[0]
         synsetDict[entity] = net
+    else:
+        NamedEntityDict[entity] = entityDict[entity]
+        print(entity + " - added to named entity list")
 
 print(synsetDict)
 
@@ -137,3 +158,4 @@ for synsetEntity in synsetDict:
 
 print(synsetScoreDict)
 print(NamedEntityDict)
+
