@@ -15,15 +15,12 @@ service = NaturalLanguageUnderstandingV1(
     url='https://gateway.watsonplatform.net/natural-language-understanding/api',
     iam_apikey='3lu4pe1GCX_ey2JIq5fTh5MjccYo0peTs8PgUCOW6Jw8')
 
-
-file = open('user-id-targetTweet-PastTweets.csv', 'r', newline='')
 writefile = open('user-id-sentiment-category_and_score', 'a', newline='')
+userwritefile = open('user-id', 'a', newline='')
+itemwritefile = open('item-id', 'a', newline='')
 writer = csv.writer(writefile)
-
-reader = csv.reader(file)
-big_list = list(reader)
-csvRow2 = [""]
-csvRow3 = [""]
+userwriter = csv.writer(userwritefile)
+itemwriter = csv.writer(itemwritefile)
 consumer_key = "uqKb1h9prIwbAVCqocBuqInFs"
 consumer_secret = "EXlWGr7VFTGJ00116M25mDWyNveORVkHVPGXHaAOsg1lwFUQn8"
 access_token = "2388347288-uEH2UbQnr2uZYCZDuvh93wD8UHZ3PMB15diH9tK"
@@ -47,9 +44,9 @@ def deEmojify(inputString):
     return inputString.encode('ascii', 'ignore').decode('ascii')
 
 
-userId = set();
+userId = set()
+itemId = set()
 i = 0
-
 
 def addDataRow(userid,item,rating,csvwriter):
     csvrow = [userid,item,rating]
@@ -65,7 +62,7 @@ for result in tweets:
 
     statuses = tweepy.Cursor(api.user_timeline,
                              user_id=result.user.id, tweet_mode="extended").items(5)
-    csvRow3 = []
+    addDataRow(i, result.user.name, result.user.id, userwriter)
     for status in statuses:
         if (not status.retweeted) and ('RT @' not in status.full_text) and (not status.in_reply_to_user_id)\
                 and result.id != status.id:
@@ -80,16 +77,18 @@ for result in tweets:
                 # sentiment analysis here
                 for keyword in response['keywords']:
                     if searcher.searchTaxMap(keyword['text'].lower()):
-                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
-
+                        itemId.add(keyword['text'])
+                        addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
+                        addDataRow(i, keyword['text'], "", itemwriter)
                 for ent in doc.ents:
                     if ent.label_ in good_labels:
                         try:
+                            itemId.add(ent.text)
                             print("Entity:" + ent.text + ent.label_)
-                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
+                            addDataRow(i, ent.text, response['sentiment']['document']['score'], writer)
                         except:
                             print("Entity:" + ent.text+ent.label_)
-                            addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
+                            addDataRow(i, ent.text, response['sentiment']['document']['score'], writer)
 
                 if len(status.entities.get("media", "")) != 0:
                     imageList = status.entities.get("media", "");
@@ -104,16 +103,18 @@ for result in tweets:
                         for eachObject in detections:
                             if searcher.searchTaxMap(keyword['text']):
                                 try:
-                                    addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
+                                    itemId.add(keyword['text'])
+                                    addDataRow(i, eachObject["name"], response['sentiment']['document']['score'], writer)
                                 except:
-                                    addDataRow(i, keyword['text'], response['sentiment']['document']['score'], writer)
+                                    addDataRow(i, eachObject["name"], response['sentiment']['document']['score'], writer)
             except:
                 response = {};
                 print("tweet has unsupported languages")
     i += 1
 
 writefile.close()
-file.close()
+userwritefile.close()
+itemwritefile.close()
 
 
 
